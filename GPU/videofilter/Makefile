@@ -12,14 +12,13 @@ CVLIBFLAGS=`pkg-config --libs opencv`
 DBGFLAGS= -pg
 all: ${EXE}
 ${EXE}:${SRCS}
-    $(GCC) ${FLAGS} ${CVINCFLAGS} ${SRCS} ${CVLIBFLAGS} ${LDFLAGS}  -o ${EXE}
+	$(GCC) ${FLAGS} ${CVINCFLAGS} ${SRCS} ${CVLIBFLAGS} ${LDFLAGS}  -o ${EXE}
 
 #${EXE}:${EXE}.o
-#   ${GCC} -o ${EXE} ${EXE}.o  ${CVLIBFLAGS} ${LDFLAGS}
+#	${GCC} -o ${EXE} ${EXE}.o  ${CVLIBFLAGS} ${LDFLAGS}
 
 debug:${EXE}
-    LD_PRELOAD=${MGD}/libinterceptor.so ./${EXE}
+	LD_PRELOAD=${MGD}/libinterceptor.so ./${EXE}
 
 clean:
-    rm -rf ${EXE} ${EXE}.oEXE=cl_video
-
+	rm -rf ${EXE} ${EXE}.o  
