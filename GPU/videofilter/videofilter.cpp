@@ -97,7 +97,28 @@ float *createGaussianKernel(uint32_t size, float sigma) {
   return ret;
 }
 
+
 int main(int, char **) {
+
+ ///////////////////// opencl setup
+ char char_buffer[STRING_BUFFER_LEN];
+    cl_platform_id platform;
+    cl_device_id device;
+    cl_context context;
+    cl_context_properties context_properties[] = {
+        CL_CONTEXT_PLATFORM,
+        0,
+        CL_PRINTF_CALLBACK_ARM,
+        (cl_context_properties)callback,
+        CL_PRINTF_BUFFERSIZE_ARM,
+        0x1000,
+        0};
+    cl_command_queue queue;
+    cl_program program;
+    cl_kernel kernel;
+//////////////////////
+
+
 
   VideoCapture camera("./bourne.mp4");
   if (!camera.isOpened()) // check if we succeeded
@@ -125,54 +146,6 @@ int main(int, char **) {
   namedWindow(windowName); // Resizable window, might not work on Windows.
 #endif
 
-  while (true) {
-
-    Mat cameraFrame, displayframe;
-    count = count + 1;
-    if (count > 299)
-      break;
-    camera >> cameraFrame;
-    time(&start);
-
-    Mat filterframe = Mat(cameraFrame.size(), CV_8UC3);
-    Mat grayframe, edge_x, edge_y, edge;
-    cvtColor(cameraFrame, grayframe, CV_BGR2GRAY);
-
-
-    float * matrix;
-    matrix = createGaussianKernel(3,0);
-    unsigned int imgSize = sizeof(unsigned int)*grayframe.rows * grayframe.cols;
-
-	/////////////////////////////////////////////
-
-    char char_buffer[STRING_BUFFER_LEN];
-	cl_platform_id platform;
-    cl_device_id device;
-    cl_context context;
-    cl_context_properties context_properties[] = {
-        CL_CONTEXT_PLATFORM,
-        0,
-        CL_PRINTF_CALLBACK_ARM,
-        (cl_context_properties)callback,
-        CL_PRINTF_BUFFERSIZE_ARM,
-        0x1000,
-        0};
-    cl_command_queue queue;
-    cl_program program;
-    cl_kernel kernel;
-	int status;
-    unsigned char * h_A = grayframe.data;
-    float * h_B = matrix;
-    unsigned char  * h_C = (unsigned char *)malloc(imgSize);
-
-    unsigned int mem_size_A = imgSize;
-    unsigned int mem_size_B = 3*3*sizeof(float);
-    unsigned int mem_size_C = imgSize;
-
-    // OpenCL device memory for matrices
-    cl_mem d_A;
-    cl_mem d_B;
-    cl_mem d_C;
 
     clGetPlatformIDs(1, &platform, NULL);
     clGetPlatformInfo(platform, CL_PLATFORM_NAME, STRING_BUFFER_LEN,char_buffer, NULL);
@@ -200,10 +173,45 @@ int main(int, char **) {
       print_clbuild_errors(program, device);
     kernel = clCreateKernel(program, "gaussian_blur", NULL);
 
+
+  while (true) {
+
+    Mat cameraFrame, displayframe;
+    count = count + 1;
+    if (count > 299)
+      break;
+    camera >> cameraFrame;
+    time(&start);
+
+    Mat filterframe = Mat(cameraFrame.size(), CV_8UC3);
+    Mat grayframe, edge_x, edge_y, edge;
+    cvtColor(cameraFrame, grayframe, CV_BGR2GRAY);
+
+	// create the gaussian Kernel
+    float * matrix;
+    matrix = createGaussianKernel(3,0);
+	// image size
+    unsigned int imgSize = sizeof(unsigned int)*grayframe.rows * grayframe.cols;
+	int status;
+
+	// the hosts iputs
+    unsigned char * h_A = grayframe.data;
+    float * h_B = matrix;
+    unsigned char  * h_C = (unsigned char *)malloc(imgSize);
+
+    unsigned int mem_size_A = imgSize;
+    unsigned int mem_size_B = 3*3*sizeof(float);
+    unsigned int mem_size_C = imgSize;
+
+    // OpenCL device memory for matrices
+    cl_mem d_A;
+    cl_mem d_B;
+    cl_mem d_C;
+
     // Create the input and output arrays in device memory for our calculation
+    d_A = clCreateBuffer(context, CL_MEM_READ_ONLY,mem_size_A, NULL, &err);
+    d_B = clCreateBuffer(context, CL_MEM_READ_ONLY,mem_size_B, NULL, &err);
     d_C = clCreateBuffer(context, CL_MEM_READ_WRITE, mem_size_A,NULL,&err);
-    d_A = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,mem_size_A, h_A, &err);
-    d_B = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,mem_size_B, h_B, &err);
 
     if (!d_A || !d_B || !d_C) {
       printf("Error: Failed to allocate device memory!\n");
@@ -214,7 +222,7 @@ int main(int, char **) {
     // clEnqueueWriteBuffer here is already aligned to ensure that DMA is used
     // for the host-to-device transfer.
     cl_event write_event[2];
-    // cl_event kernel_event,finish_event;
+    cl_event kernel_event,finish_event;
     status = clEnqueueWriteBuffer(queue, d_A, CL_FALSE, 0, mem_size_A, h_A, 0,NULL, &write_event[0]);
     checkError(status, "Failed to transfer input A");
 
@@ -224,7 +232,7 @@ int main(int, char **) {
 
     // Set kernel arguments.
     unsigned argi = 0;
-	  int size = 9 ;
+	int size = 9 ;
     status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &d_A);
     checkError(status, "Failed to set argument 1");
 
@@ -251,7 +259,7 @@ int main(int, char **) {
     globalWorkSize[0] = 1024;
     globalWorkSize[1] = 1024;
 
-    err = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, globalWorkSize,localWorkSize, 0, NULL, NULL);
+    err = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, globalWorkSize,localWorkSize,2, write_event, &kernel_event);
 
     if (err != CL_SUCCESS) {
       printf("Error: Failed to execute kernel! %d\n", err);
@@ -259,48 +267,50 @@ int main(int, char **) {
     }
 
     // Read the result. This the final operation.
-    status = clEnqueueReadBuffer(queue, d_C, CL_TRUE, 0, mem_size_C, h_C, 0, NULL,NULL);
+    status = clEnqueueReadBuffer(queue, d_C, CL_TRUE, 0, mem_size_C, h_C, 1, &kernel_event, &finish_event);
     checkError(status, "Failed to set output");
 
-    // Release local events.);
-    free(h_A);
-    free(h_B);
-    free(h_C);
-
-    clReleaseEvent(write_event[0]);
-    clReleaseKernel(kernel);
-    clReleaseCommandQueue(queue);
-    clReleaseMemObject(d_A);
-    clReleaseMemObject(d_B);
-    clReleaseMemObject(d_C);
-    clReleaseProgram(program);
-    clReleaseContext(context);
-
-    //--------------------------------------------------------------------
-
-    clFinish(queue);
-
-
-    // GaussianBlur(grayframe, grayframe, Size(3, 3), 0, 0);
-    // GaussianBlur(grayframe, grayframe, Size(3, 3), 0, 0);
-    // GaussianBlur(grayframe, grayframe, Size(3, 3), 0, 0);
-    // Scharr(grayframe, edge_x, CV_8U, 0, 1, 1, 0, BORDER_DEFAULT);
-    // Scharr(grayframe, edge_y, CV_8U, 1, 0, 1, 0, BORDER_DEFAULT);
-    // addWeighted(edge_x, 0.5, edge_y, 0.5, 0, edge);
-
     time(&end);
+    diff = difftime (end,start);
+    printf ("GPU took %.8lf seconds to run.\n", diff );
 
-    cvtColor(edge, displayframe, CV_GRAY2BGR);
+
+	Mat result(cameraFrame.size(), CV_8UC1, h_C);
+
+    cvtColor(result, displayframe, CV_GRAY2BGR);
+	cout << "DISPLAY" << displayframe.size() << endl;
+    printf("display frame: %d %d\n", displayframe.rows, displayframe.cols);
     outputVideo << displayframe;
+
 #ifdef SHOW
     imshow(windowName, displayframe);
 #endif
     diff = difftime(end, start);
     tot += diff;
-  }
-  outputVideo.release();
-  camera.release();
- //printf("FPS %.2lf .\n", 299.0 / tot);
 
-  return EXIT_SUCCESS;
+	// Release local events
+    free(h_A);
+    free(h_B);
+    free(h_C);
+
+    clReleaseEvent(write_event[0]);
+    clReleaseEvent(write_event[1]);
+    clReleaseMemObject(d_A);
+    clReleaseMemObject(d_B);
+    clReleaseMemObject(d_C);
+
+  }
+
+	clReleaseKernel(kernel);
+	clReleaseCommandQueue(queue);
+	clReleaseProgram(program);
+    clReleaseContext(context);
+	clFinish(queue);
+
+
+	outputVideo.release();
+	camera.release();
+	//printf("FPS %.2lf .\n", 299.0 / tot);
+
+	return EXIT_SUCCESS;
 }
