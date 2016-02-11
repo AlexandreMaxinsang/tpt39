@@ -111,7 +111,7 @@ int main(int, char **) {
   if (!camera.isOpened()) // check if we succeeded
     return -1;
 
-  const string NAME = "./output.avi"; // Form the new name with container
+  const string NAME = "./myvideo.avi"; // Form the new name with container
   int ex = static_cast<int>(CV_FOURCC('M', 'J', 'P', 'G'));
   Size S = Size((int)camera.get(CV_CAP_PROP_FRAME_WIDTH), // Acquire input size
                 (int)camera.get(CV_CAP_PROP_FRAME_HEIGHT));
@@ -179,14 +179,15 @@ int main(int, char **) {
 
 
     // image size
-    uint32_t imgSize = 3 *grayframe.rows * grayframe.cols;
+    uint32_t imgSize = grayframe.rows * grayframe.cols;
     uint32_t size = 3;
 
 	// create the gaussian Kernel
     float *matrix;
     matrix = createGaussianKernel(size, 1.0f);
 
-
+	cout <<"The height of frame "<< grayframe.rows << endl;
+	cout <<"The weight of frame "<< grayframe.cols << endl;
 
     unsigned int mem_size_A = imgSize;
     unsigned int mem_size_B = size * size * sizeof(float);
@@ -230,10 +231,10 @@ int main(int, char **) {
 
     // Set kernel arguments.
     unsigned argi = 0;
-    status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &d_A);
+    status = clSetKernelArg(kernel, argi++, sizeof(cl_mem),(void *) &d_A);
     checkError(status, "Failed to set argument 1");
 
-    status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &d_B);
+    status = clSetKernelArg(kernel, argi++, sizeof(cl_mem),(void *) &d_B);
     checkError(status, "Failed to set argument 2");
 
     status =
@@ -247,7 +248,7 @@ int main(int, char **) {
     status = clSetKernelArg(kernel, argi++, sizeof(int), (void *)&size);
     checkError(status, "Failed to set argument 5");
 
-    status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &d_C);
+    status = clSetKernelArg(kernel, argi++, sizeof(cl_mem),(void *) &d_C);
     checkError(status, "Failed to set argument 6");
     ///enqueue the kernel into the OpenCL device for execution
     size_t globalWorkItemSize = mem_size_A;//the total size of 1 dimension of the work items. Basically the whole image buffer size
@@ -256,17 +257,23 @@ int main(int, char **) {
 
     checkError(status, "Failed to set enqueue kernel");
 
+	cout << "Reading the result" <<endl;
     // Read the result. This the final operation.
     status = clEnqueueReadBuffer(queue, d_C, CL_TRUE, 0, mem_size_C, h_C,
                                 1, &kernel_event, &finish_event);
     checkError(status, "Failed to set output");
 
+
+	cout << "Finished" <<endl;
     time(&end);
+
     diff = difftime(end, start);
     printf("GPU took %.8lf seconds to run.\n", diff);
 
-    Mat result(cameraFrame.size(), CV_8UC1, h_C);
 
+
+
+    Mat result(cameraFrame.size(), CV_8UC1, h_C);
     cvtColor(result, displayframe, CV_GRAY2BGR);
     cout << "DISPLAY" << displayframe.size() << endl;
     printf("display frame: %d %d\n", displayframe.rows, displayframe.cols);
