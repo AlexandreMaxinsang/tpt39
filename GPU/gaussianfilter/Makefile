@@ -1,5 +1,5 @@
-EXE=videofilter
-SRCS=videofilter.cpp
+EXE=gaussianfilter
+SRCS=gaussianfilter.cpp
 GCC=g++
 OCLLIBSDIR=/opt/ComputeLibrary/build/
 OCLINCSDIR=/opt/ComputeLibrary/include/

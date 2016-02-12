@@ -160,7 +160,14 @@ int main(int, char **) {
   int err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
   if (err != CL_SUCCESS)
     print_clbuild_errors(program, device);
-  kernel = clCreateKernel(program, "kernel", NULL);
+  kernel = clCreateKernel(program, "convolution", NULL);
+
+	uint32_t size = 3;
+
+    // create the gaussian Kernel
+    float *matrix;
+    matrix = createGaussianKernel(size, 2.0f);
+
 
   while (true) {
     int status;
@@ -177,11 +184,6 @@ int main(int, char **) {
 
     // image size
     uint32_t imgSize = grayframe.rows * grayframe.cols;
-    uint32_t size = 3;
-
-    // create the gaussian Kernel
-    float *matrix;
-    matrix = createGaussianKernel(size, 1.0f);
 
     cout << "The height of frame " << grayframe.rows << endl;
     cout << "The weight of frame " << grayframe.cols << endl;
