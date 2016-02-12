@@ -215,6 +215,8 @@ int main(int, char **) {
     // for the host-to-device transfer.
     cl_event write_event[2];
     cl_event kernel_event, finish_event;
+
+
     status = clEnqueueWriteBuffer(queue, d_A, CL_FALSE, 0, mem_size_A, h_A, 0,
                                   NULL, &write_event[0]);
     checkError(status, "Failed to transfer input A");
@@ -259,6 +261,127 @@ int main(int, char **) {
     status = clEnqueueReadBuffer(queue, d_C, CL_TRUE, 0, mem_size_C, h_C, 1,
                                  &kernel_event, &finish_event);
     checkError(status, "Failed to set output");
+
+	//////////////////////////////////////////////////
+    
+	float * ret = (float *)malloc(sizeof(float) * size * size);
+	ret[0] = 1.0f; ret[1] = 0.0f; ret[2] = -1.0f;
+	ret[3] = 2.0f; ret[4] = 0.0f; ret[5] = -2.0f;
+    ret[6] =-2.0f; ret[7] = 0.0f; ret[8] = -1.0f;
+
+	h_B = ret;
+
+	status = clEnqueueWriteBuffer(queue, d_A, CL_FALSE, 0, mem_size_A, h_A, 0,
+                                  NULL, &write_event[0]);
+    checkError(status, "Failed to transfer input A");
+
+    status = clEnqueueWriteBuffer(queue, d_B, CL_FALSE, 0, mem_size_B, h_B, 0,
+                                  NULL, &write_event[1]);
+
+    checkError(status, "Failed to transfer input B");
+
+    // Set kernel arguments.
+    argi = 0;
+    status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), (void *)&d_A);
+    checkError(status, "Failed to set argument 1");
+
+    status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), (void *)&d_B);
+    checkError(status, "Failed to set argument 2");
+
+    status =
+        clSetKernelArg(kernel, argi++, sizeof(int), (void *)&grayframe.cols);
+    checkError(status, "Failed to set argument 3");
+
+    status =
+        clSetKernelArg(kernel, argi++, sizeof(int), (void *)&grayframe.rows);
+    checkError(status, "Failed to set argument 4");
+
+    status = clSetKernelArg(kernel, argi++, sizeof(int), (void *)&size);
+    checkError(status, "Failed to set argument 5");
+
+    status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), (void *)&d_C);
+    checkError(status, "Failed to set argument 6");
+    /// enqueue the kernel into the OpenCL device for execution
+    // the total size of 1 dimension of the work items. Basically the whole
+    // image buffer size
+    globalWorkItemSize = mem_size_A;
+    status = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &globalWorkItemSize,
+                                    NULL, 2, write_event, &kernel_event);
+
+    checkError(status, "Failed to set enqueue kernel");
+	
+	// Read the result. This the final operation.
+    status = clEnqueueReadBuffer(queue, d_C, CL_TRUE, 0, mem_size_C, h_C, 1,
+                                 &kernel_event, &finish_event);
+    checkError(status, "Failed to set output");
+	
+	unsigned char *Gx = h_C;
+	////////////////////////////////////////
+    ret = (float *)malloc(sizeof(float) * size * size);
+    ret[0] = 1.0f; ret[1] = 2.0f; ret[2] = 1.0f;
+    ret[3] = 0.0f; ret[4] = 0.0f; ret[5] = 0.0f;
+    ret[6] =-1.0f; ret[7] = -2.0f; ret[8] = -1.0f;
+
+    h_B = ret;
+
+    status = clEnqueueWriteBuffer(queue, d_A, CL_FALSE, 0, mem_size_A, h_A, 0,
+                                  NULL, &write_event[0]);
+    checkError(status, "Failed to transfer input A");
+
+    status = clEnqueueWriteBuffer(queue, d_B, CL_FALSE, 0, mem_size_B, h_B, 0,
+                                  NULL, &write_event[1]);
+
+    checkError(status, "Failed to transfer input B");
+
+    // Set kernel arguments.
+    argi = 0;
+    status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), (void *)&d_A);
+    checkError(status, "Failed to set argument 1");
+
+    status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), (void *)&d_B);
+    checkError(status, "Failed to set argument 2");
+
+    status =
+        clSetKernelArg(kernel, argi++, sizeof(int), (void *)&grayframe.cols);
+    checkError(status, "Failed to set argument 3");
+
+    status =
+        clSetKernelArg(kernel, argi++, sizeof(int), (void *)&grayframe.rows);
+    checkError(status, "Failed to set argument 4");
+
+    status = clSetKernelArg(kernel, argi++, sizeof(int), (void *)&size);
+    checkError(status, "Failed to set argument 5");
+
+    status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), (void *)&d_C);
+    checkError(status, "Failed to set argument 6");
+    /// enqueue the kernel into the OpenCL device for execution
+    // the total size of 1 dimension of the work items. Basically the whole
+    // image buffer size
+    globalWorkItemSize = mem_size_A;
+    status = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &globalWorkItemSize,
+                                    NULL, 2, write_event, &kernel_event);
+	checkError(status, "Failed to set enqueue kernel");
+
+    // Read the result. This the final operation.
+    status = clEnqueueReadBuffer(queue, d_C, CL_TRUE, 0, mem_size_C, h_C, 1,
+                                 &kernel_event, &finish_event);
+    checkError(status, "Failed to set output");
+
+    unsigned char *Gy = h_C;
+
+	///////////////////////////////////////////
+
+
+	for(int i = 0 ; i <grayframe.rows*grayframe.rows;i++ ){
+		h_C[i] = sqrt(Gx[i]*Gx[i] + Gy[i]*Gy[i]);
+	}
+
+
+
+
+
+
+
 
     cout << "Finished" << endl;
     time(&end);
