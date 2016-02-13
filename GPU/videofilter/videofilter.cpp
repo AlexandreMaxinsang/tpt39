@@ -41,6 +41,7 @@ int main(int, char**)
 		if(count > 299) break;
         camera >> cameraFrame;
 		time (&start);
+
         Mat filterframe = Mat(cameraFrame.size(), CV_8UC3);
         Mat grayframe,edge_x,edge_y,edge;
     	cvtColor(cameraFrame, grayframe, CV_BGR2GRAY);
@@ -50,6 +51,7 @@ int main(int, char**)
 		Scharr(grayframe, edge_x, CV_8U, 0, 1, 1, 0, BORDER_DEFAULT );
 		Scharr(grayframe, edge_y, CV_8U, 1, 0, 1, 0, BORDER_DEFAULT );
 		addWeighted( edge_x, 0.5, edge_y, 0.5, 0, edge );
+
 		time (&end);
         cvtColor(edge, displayframe, CV_GRAY2BGR);
 		outputVideo << displayframe;

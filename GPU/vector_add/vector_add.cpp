@@ -179,7 +179,11 @@ int status;
 
    time (&end);
    diff = difftime (end,start);
-   printf ("GPU took %.8lf seconds to run.\n", diff );
+   printf ("GPU took %.8lf seconds to run.\n", diff);
+   double sum = 0;
+    for(unsigned i=0; i<N; i++)
+        sum += output[i];
+   printf("final result: %f\n", sum/N);
 // Verify results.
 bool pass = true;
 
