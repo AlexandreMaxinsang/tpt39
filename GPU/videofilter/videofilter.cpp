@@ -4,24 +4,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-
 #include <CL/cl.h>
 #include <CL/cl_ext.h>
 
-using namespace cv;
-using namespace std;
 #define SHOW
-
 #define WA 1024
 #define HA 1024
 #define WB 1024
-
 #define HB WA
 #define WC WB
 #define HC HA
-
 #define PI_ 3.14159265359f
 #define STRING_BUFFER_LEN 1024
+
+using namespace cv;
+using namespace std;
 
 void print_clbuild_errors(cl_program program, cl_device_id device) {
   cout << "Program Build failed\n";
@@ -79,7 +76,7 @@ float *createGaussianKernel(uint32_t size, float sigma) {
   double center = size / 2;
   float sum = 0;
   // allocate and create the gaussian kernel
-  ret =(float*) malloc(sizeof(float) * size * size);
+  ret = (float *)malloc(sizeof(float) * size * size);
   for (x = 0; x < size; x++) {
     for (y = 0; y < size; y++) {
       ret[y * size + x] =
@@ -92,33 +89,29 @@ float *createGaussianKernel(uint32_t size, float sigma) {
   }
   // normalize
   for (x = 0; x < size * size; x++) {
-     ret[x] = ret[x] / sum;
+    ret[x] = ret[x] / sum;
   }
   return ret;
 }
 
-
 int main(int, char **) {
 
- ///////////////////// opencl setup
- char char_buffer[STRING_BUFFER_LEN];
-    cl_platform_id platform;
-    cl_device_id device;
-    cl_context context;
-    cl_context_properties context_properties[] = {
-        CL_CONTEXT_PLATFORM,
-        0,
-        CL_PRINTF_CALLBACK_ARM,
-        (cl_context_properties)callback,
-        CL_PRINTF_BUFFERSIZE_ARM,
-        0x1000,
-        0};
-    cl_command_queue queue;
-    cl_program program;
-    cl_kernel kernel;
-//////////////////////
-
-
+  ///////////////////// opencl setup
+  char char_buffer[STRING_BUFFER_LEN];
+  cl_platform_id platform;
+  cl_device_id device;
+  cl_context context;
+  cl_context_properties context_properties[] = {CL_CONTEXT_PLATFORM,
+                                                0,
+                                                CL_PRINTF_CALLBACK_ARM,
+                                                (cl_context_properties)callback,
+                                                CL_PRINTF_BUFFERSIZE_ARM,
+                                                0x1000,
+                                                0};
+  cl_command_queue queue;
+  cl_program program;
+  cl_kernel kernel;
+  //////////////////////
 
   VideoCapture camera("./bourne.mp4");
   if (!camera.isOpened()) // check if we succeeded
@@ -146,33 +139,34 @@ int main(int, char **) {
   namedWindow(windowName); // Resizable window, might not work on Windows.
 #endif
 
+  clGetPlatformIDs(1, &platform, NULL);
+  clGetPlatformInfo(platform, CL_PLATFORM_NAME, STRING_BUFFER_LEN, char_buffer,
+                    NULL);
+  printf("%-40s = %s\n", "CL_PLATFORM_NAME", char_buffer);
+  clGetPlatformInfo(platform, CL_PLATFORM_VENDOR, STRING_BUFFER_LEN,
+                    char_buffer, NULL);
+  printf("%-40s = %s\n", "CL_PLATFORM_VENDOR ", char_buffer);
+  clGetPlatformInfo(platform, CL_PLATFORM_VERSION, STRING_BUFFER_LEN,
+                    char_buffer, NULL);
+  printf("%-40s = %s\n\n", "CL_PLATFORM_VERSION ", char_buffer);
 
-    clGetPlatformIDs(1, &platform, NULL);
-    clGetPlatformInfo(platform, CL_PLATFORM_NAME, STRING_BUFFER_LEN,char_buffer, NULL);
-    printf("%-40s = %s\n", "CL_PLATFORM_NAME", char_buffer);
-    clGetPlatformInfo(platform, CL_PLATFORM_VENDOR, STRING_BUFFER_LEN,char_buffer, NULL);
-    printf("%-40s = %s\n", "CL_PLATFORM_VENDOR ", char_buffer);
-    clGetPlatformInfo(platform, CL_PLATFORM_VERSION, STRING_BUFFER_LEN,char_buffer, NULL);
-    printf("%-40s = %s\n\n", "CL_PLATFORM_VERSION ", char_buffer);
+  context_properties[1] = (cl_context_properties)platform;
+  clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, NULL);
+  context = clCreateContext(context_properties, 1, &device, NULL, NULL, NULL);
+  queue = clCreateCommandQueue(context, device, 0, NULL);
 
-    context_properties[1] = (cl_context_properties)platform;
-    clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, NULL);
-    context = clCreateContext(context_properties, 1, &device, NULL, NULL, NULL);
-    queue = clCreateCommandQueue(context, device, 0, NULL);
-
-    // Read the program
-    unsigned char **opencl_program = read_file("gaussian_blur.cl");
-    program = clCreateProgramWithSource(context, 1, (const char **)opencl_program,
-                                        NULL, NULL);
-    if (program == NULL) {
-      printf("Program creation failed\n");
-      return 1;
-    }
-    int err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
-    if (err != CL_SUCCESS)
-      print_clbuild_errors(program, device);
-    kernel = clCreateKernel(program, "gaussian_blur", NULL);
-
+  // Read the program
+  unsigned char **opencl_program = read_file("gaussian_blur.cl");
+  program = clCreateProgramWithSource(context, 1, (const char **)opencl_program,
+                                      NULL, NULL);
+  if (program == NULL) {
+    printf("Program creation failed\n");
+    return 1;
+  }
+  int err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
+  if (err != CL_SUCCESS)
+    print_clbuild_errors(program, device);
+  kernel = clCreateKernel(program, "gaussian_blur", NULL);
 
   while (true) {
 
@@ -187,20 +181,21 @@ int main(int, char **) {
     Mat grayframe, edge_x, edge_y, edge;
     cvtColor(cameraFrame, grayframe, CV_BGR2GRAY);
 
-	// create the gaussian Kernel
-    float * matrix;
-    matrix = createGaussianKernel(3,0);
-	// image size
-    unsigned int imgSize = sizeof(unsigned int)*grayframe.rows * grayframe.cols;
-	int status;
+    // create the gaussian Kernel
+    float *matrix;
+    matrix = createGaussianKernel(3, 0);
+    // image size
+    uint32_t imgSize =grayframe.rows * grayframe.cols*3;
+    int status;
+    int size = 3;
+    // the hosts iputs
+    unsigned char *h_A = grayframe.data;
+    float *h_B = matrix;
+    unsigned char *h_C = (unsigned char *)malloc(imgSize);
 
-	// the hosts iputs
-    unsigned char * h_A = grayframe.data;
-    float * h_B = matrix;
-    unsigned char  * h_C = (unsigned char *)malloc(imgSize);
 
     unsigned int mem_size_A = imgSize;
-    unsigned int mem_size_B = 3*3*sizeof(float);
+    unsigned int mem_size_B = size * size * sizeof(float);
     unsigned int mem_size_C = imgSize;
 
     // OpenCL device memory for matrices
@@ -209,9 +204,9 @@ int main(int, char **) {
     cl_mem d_C;
 
     // Create the input and output arrays in device memory for our calculation
-    d_A = clCreateBuffer(context, CL_MEM_READ_ONLY,mem_size_A, NULL, &err);
-    d_B = clCreateBuffer(context, CL_MEM_READ_ONLY,mem_size_B, NULL, &err);
-    d_C = clCreateBuffer(context, CL_MEM_READ_WRITE, mem_size_A,NULL,&err);
+    d_A = clCreateBuffer(context, CL_MEM_READ_ONLY, mem_size_A, NULL, &err);
+    d_B = clCreateBuffer(context, CL_MEM_READ_ONLY, mem_size_B, NULL, &err);
+    d_C = clCreateBuffer(context, CL_MEM_READ_WRITE, mem_size_A, NULL, &err);
 
     if (!d_A || !d_B || !d_C) {
       printf("Error: Failed to allocate device memory!\n");
@@ -222,35 +217,37 @@ int main(int, char **) {
     // clEnqueueWriteBuffer here is already aligned to ensure that DMA is used
     // for the host-to-device transfer.
     cl_event write_event[2];
-    cl_event kernel_event,finish_event;
-    status = clEnqueueWriteBuffer(queue, d_A, CL_FALSE, 0, mem_size_A, h_A, 0,NULL, &write_event[0]);
+    cl_event kernel_event, finish_event;
+    status = clEnqueueWriteBuffer(queue, d_A, CL_FALSE, 0, mem_size_A, h_A, 0,
+                                  NULL, &write_event[0]);
     checkError(status, "Failed to transfer input A");
 
-   status = clEnqueueWriteBuffer(queue, d_B, CL_FALSE, 0, mem_size_B, h_B, 0,NULL, &write_event[1]);
+    status = clEnqueueWriteBuffer(queue, d_B, CL_FALSE, 0, mem_size_B, h_B, 0,
+                                  NULL, &write_event[1]);
 
     checkError(status, "Failed to transfer input B");
 
     // Set kernel arguments.
     unsigned argi = 0;
-	int size = 9 ;
     status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &d_A);
     checkError(status, "Failed to set argument 1");
 
     status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &d_B);
     checkError(status, "Failed to set argument 2");
 
-    status = clSetKernelArg(kernel, argi++, sizeof(int), (void *)&grayframe.cols);
+    status =
+        clSetKernelArg(kernel, argi++, sizeof(int), (void *)&grayframe.cols);
     checkError(status, "Failed to set argument 3");
 
-    status = clSetKernelArg(kernel, argi++, sizeof(int), (void *)&grayframe.rows);
+    status =
+        clSetKernelArg(kernel, argi++, sizeof(int), (void *)&grayframe.rows);
     checkError(status, "Failed to set argument 4");
 
     status = clSetKernelArg(kernel, argi++, sizeof(int), (void *)&size);
     checkError(status, "Failed to set argument 5");
 
-	status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &d_C);
+    status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &d_C);
     checkError(status, "Failed to set argument 6");
-
 
     size_t localWorkSize[2], globalWorkSize[2];
 
@@ -259,7 +256,8 @@ int main(int, char **) {
     globalWorkSize[0] = 1024;
     globalWorkSize[1] = 1024;
 
-    err = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, globalWorkSize,localWorkSize,2, write_event, &kernel_event);
+    err = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, globalWorkSize,
+                                 localWorkSize, 2, write_event, &kernel_event);
 
     if (err != CL_SUCCESS) {
       printf("Error: Failed to execute kernel! %d\n", err);
@@ -267,18 +265,18 @@ int main(int, char **) {
     }
 
     // Read the result. This the final operation.
-    status = clEnqueueReadBuffer(queue, d_C, CL_TRUE, 0, mem_size_C, h_C, 1, &kernel_event, &finish_event);
+    status = clEnqueueReadBuffer(queue, d_C, CL_TRUE, 0, mem_size_C, h_C, 1,
+                                 &kernel_event, &finish_event);
     checkError(status, "Failed to set output");
 
     time(&end);
-    diff = difftime (end,start);
-    printf ("GPU took %.8lf seconds to run.\n", diff );
+    diff = difftime(end, start);
+    printf("GPU took %.8lf seconds to run.\n", diff);
 
-
-	Mat result(cameraFrame.size(), CV_8UC1, h_C);
+    Mat result(cameraFrame.size(), CV_8UC1, h_C);
 
     cvtColor(result, displayframe, CV_GRAY2BGR);
-	cout << "DISPLAY" << displayframe.size() << endl;
+    cout << "DISPLAY" << displayframe.size() << endl;
     printf("display frame: %d %d\n", displayframe.rows, displayframe.cols);
     outputVideo << displayframe;
 
@@ -288,7 +286,7 @@ int main(int, char **) {
     diff = difftime(end, start);
     tot += diff;
 
-	// Release local events
+    // Release local events
     free(h_A);
     free(h_B);
     free(h_C);
@@ -298,19 +296,17 @@ int main(int, char **) {
     clReleaseMemObject(d_A);
     clReleaseMemObject(d_B);
     clReleaseMemObject(d_C);
-
   }
 
-	clReleaseKernel(kernel);
-	clReleaseCommandQueue(queue);
-	clReleaseProgram(program);
-    clReleaseContext(context);
-	clFinish(queue);
+  clReleaseKernel(kernel);
+  clReleaseCommandQueue(queue);
+  clReleaseProgram(program);
+  clReleaseContext(context);
+  clFinish(queue);
 
+  outputVideo.release();
+  camera.release();
+  // printf("FPS %.2lf .\n", 299.0 / tot);
 
-	outputVideo.release();
-	camera.release();
-	//printf("FPS %.2lf .\n", 299.0 / tot);
-
-	return EXIT_SUCCESS;
+  return EXIT_SUCCESS;
 }
