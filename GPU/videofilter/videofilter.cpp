@@ -188,7 +188,7 @@ int main(int, char **) {
     queue = clCreateCommandQueue(context, device, 0, NULL);
 
     // Read the program
-    unsigned char **opencl_program = read_file("kernel.cl");
+    unsigned char **opencl_program = read_file("gaussian_blur.cl");
     program = clCreateProgramWithSource(context, 1, (const char **)opencl_program,
                                         NULL, NULL);
     if (program == NULL) {
@@ -198,7 +198,7 @@ int main(int, char **) {
     int err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
     if (err != CL_SUCCESS)
       print_clbuild_errors(program, device);
-    kernel = clCreateKernel(program, "kernel", NULL);
+    kernel = clCreateKernel(program, "gaussian_blur", NULL);
 
     // Create the input and output arrays in device memory for our calculation
     d_C = clCreateBuffer(context, CL_MEM_READ_WRITE, mem_size_A,NULL,&err);
@@ -224,7 +224,7 @@ int main(int, char **) {
 
     // Set kernel arguments.
     unsigned argi = 0;
-	int size = 9 ;
+	  int size = 9 ;
     status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &d_A);
     checkError(status, "Failed to set argument 1");
 
