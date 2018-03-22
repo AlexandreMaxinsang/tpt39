@@ -123,6 +123,7 @@ int main(int, char **) {
 #endif
 
   while (true) {
+
     Mat cameraFrame, displayframe;
     count = count + 1;
     if (count > 299)
@@ -130,11 +131,23 @@ int main(int, char **) {
     camera >> cameraFrame;
     time(&start);
 
+    Bitmap bmp = null;
     Mat filterframe = Mat(cameraFrame.size(), CV_8UC3);
     Mat grayframe, edge_x, edge_y, edge;
-    cvtColor(cameraFrame, grayframe, CV_BGR2GRAY); // grayframe is the bitmap
+    cvtColor(cameraFrame, grayframe, CV_BGR2GRAY);
 
-    //-------------------------------------------Initializing cl
+    bmp = Bitmap.createBitmap(grayframe.cols(), grayframe.rows(), Bitmap.Config.ARGB_8888);
+    Utils.matToBitmap(grayframe, bmp);
+    uint32_t imgSize;
+    imgSize = bmp.imgWidth*bmp.imgHeight*3;
+
+    //create the gaussian kernel
+    matrix = createGaussianKernel(3,0);
+    //create the pointer that will hold the new (blurred) image data
+    unsigned char* newData;
+    newData = malloc(imgSize);
+
+    //--------------------Initializing cl-------------------------
 
     char char_buffer[STRING_BUFFER_LEN];
     cl_platform_id platform;
@@ -153,6 +166,14 @@ int main(int, char **) {
     cl_kernel kernel;
 
     //-------------------------------------------
+
+    h_A = bmp.imgData;
+    h_B = matrix;
+    h_C = newData;
+
+    mem_size_A = imgSize;
+    mem_size_B = 3*3*sizeof(float);
+    mem_size_C = imgSize;
 
     // OpenCL device memory for matrices
     cl_mem d_A;
