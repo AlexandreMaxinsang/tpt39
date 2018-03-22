@@ -181,6 +181,7 @@ int main(int, char **) {
     Mat grayframe, edge_x, edge_y, edge;
     cvtColor(cameraFrame, grayframe, CV_BGR2GRAY);
 
+    printf("<<<<<<%f>>>>>",cameraFrame);
     // create the gaussian Kernel
     float *matrix;
     matrix = createGaussianKernel(3, 0);
