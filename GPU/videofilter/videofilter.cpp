@@ -168,8 +168,10 @@ int main(int, char **) {
     print_clbuild_errors(program, device);
   kernel = clCreateKernel(program, "gaussian_blur", NULL);
 
-  while (true) {
 
+
+  while (true) {
+    int status;
     Mat cameraFrame, displayframe;
     count = count + 1;
     if (count > 299)
@@ -181,19 +183,19 @@ int main(int, char **) {
     Mat grayframe, edge_x, edge_y, edge;
     cvtColor(cameraFrame, grayframe, CV_BGR2GRAY);
 
-    printf("<<<<<<%f>>>>>",cameraFrame);
-    // create the gaussian Kernel
-    float *matrix;
-    matrix = createGaussianKernel(3, 0);
+    printf("<<<<<<%f>>>>>",cameraFrame.size());
+
     // image size
-    uint32_t imgSize =grayframe.rows * grayframe.cols*3;
-    int status;
-    int size = 3;
+    uint32_t imgSize = 3 *grayframe.rows * grayframe.cols;
+    uint32_t size = 3;
     // the hosts iputs
     unsigned char *h_A = grayframe.data;
     float *h_B = matrix;
     unsigned char *h_C = (unsigned char *)malloc(imgSize);
 
+    // create the gaussian Kernel
+    float *matrix;
+    matrix = createGaussianKernel(size, 1.0f);
 
     unsigned int mem_size_A = imgSize;
     unsigned int mem_size_B = size * size * sizeof(float);
@@ -252,18 +254,12 @@ int main(int, char **) {
 
     size_t localWorkSize[2], globalWorkSize[2];
 
-    localWorkSize[0] = 16;
-    localWorkSize[1] = 16;
-    globalWorkSize[0] = 1024;
-    globalWorkSize[1] = 1024;
-
-    err = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, globalWorkSize,
-                                 localWorkSize, 2, write_event, &kernel_event);
-
-    if (err != CL_SUCCESS) {
-      printf("Error: Failed to execute kernel! %d\n", err);
-      exit(1);
-    }
+    ///enqueue the kernel into the OpenCL device for execution
+    size_t globalWorkItemSize = imgSize;//the total size of 1 dimension of the work items. Basically the whole image buffer size
+    size_t workGroupSize = 64; //The size of one work group
+    status = clEnqueueNDRangeKernel(cmdQueue, kernel, 1, NULL,
+                                    &globalWorkItemSize, &workGroupSize,0, NULL, NULL);
+    checkError(status, "Failed to set enqueue kernel");
 
     // Read the result. This the final operation.
     status = clEnqueueReadBuffer(queue, d_C, CL_TRUE, 0, mem_size_C, h_C, 1,
