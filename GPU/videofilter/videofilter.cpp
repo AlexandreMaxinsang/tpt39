@@ -179,13 +179,12 @@ int main(int, char **) {
 
 
     // image size
-    uint32_t imgSize = 3 *grayframe.rows * grayframe.cols;
+    uint32_t imgSize = grayframe.rows * grayframe.cols;
     uint32_t size = 3;
 
 	// create the gaussian Kernel
     float *matrix;
     matrix = createGaussianKernel(size, 1.0f);
-
 
 
     unsigned int mem_size_A = imgSize;
@@ -250,7 +249,8 @@ int main(int, char **) {
     status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &d_C);
     checkError(status, "Failed to set argument 6");
     ///enqueue the kernel into the OpenCL device for execution
-    size_t globalWorkItemSize = mem_size_A;//the total size of 1 dimension of the work items. Basically the whole image buffer size
+    //the total size of 1 dimension of the work items. Basically the whole image buffer size
+    size_t globalWorkItemSize = mem_size_A;
     status = clEnqueueNDRangeKernel(queue, kernel, 1, NULL,&globalWorkItemSize,
 									NULL,2, write_event, &kernel_event);
 

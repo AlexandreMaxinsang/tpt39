@@ -10,6 +10,11 @@ gaussian_blur(__global const unsigned char *image,
 	unsigned int x,y,imgLineSize;
 	float value;
 	int i,xOff,yOff,center;
+	unsigned int dstXStride = get_global_id(0);
+	unsigned int dstXIndex = get_global_id(1)*dstXStride + get_global_id(0);
+	unsigned int srcXStride = dstXStride + 32;
+	unsigned scrIndex = get_global_id(1)*srcXStride + get_global_id(0) + 16;
+	unsigned int a,b,c,d,e,f,g,h;
     //Get the index of the current element being processed
     i = get_global_id(0);
 	//Calculate some needed variables
@@ -35,4 +40,5 @@ gaussian_blur(__global const unsigned char *image,
 	{
 		newImg[i] = image[i];
 	}
+
 }
