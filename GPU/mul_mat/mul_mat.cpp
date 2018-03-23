@@ -6,11 +6,9 @@
 #include <stdlib.h>
 #include <time.h>
 #define STRING_BUFFER_LEN 1024
-
 #define WA 1024
 #define HA 1024
 #define WB 1024
-
 #define HB WA
 #define WC WB
 #define HC HA
@@ -160,15 +158,6 @@ int main() {
   context = clCreateContext(context_properties, 1, &device, NULL, NULL, NULL);
   queue = clCreateCommandQueue(context, device, 0, NULL);
 
-  //     size_t max_work_group_size;
-  //     clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(size_t),
-  //     &max_work_group_size, NULL);
-  //    size_t group_num = N / max_work_group_size;
-
-  //    float *output=(float *) malloc(sizeof(float)* group_num);
-  //     for (unsigned j=0; j< group_num; ++j){
-  //    output[j] = 0;
-  //    }
 
   // Read the program
   unsigned char **opencl_program = read_file("mul_mat.cl");

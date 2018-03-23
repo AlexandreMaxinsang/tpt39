@@ -1,11 +1,11 @@
 #include "opencv2/opencv.hpp"
+#include <CL/cl.h>
+#include <CL/cl_ext.h>
 #include <fstream>
 #include <iostream> // for standard I/O
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <CL/cl.h>
-#include <CL/cl_ext.h>
 
 #define SHOW
 #define PI_ 3.14159265359f
@@ -162,8 +162,6 @@ int main(int, char **) {
     print_clbuild_errors(program, device);
   kernel = clCreateKernel(program, "gaussian_blur", NULL);
 
-
-
   while (true) {
     int status;
     Mat cameraFrame, displayframe;
@@ -177,17 +175,16 @@ int main(int, char **) {
     Mat grayframe, edge_x, edge_y, edge;
     cvtColor(cameraFrame, grayframe, CV_BGR2GRAY);
 
-
     // image size
     uint32_t imgSize = grayframe.rows * grayframe.cols;
     uint32_t size = 3;
 
-	// create the gaussian Kernel
+    // create the gaussian Kernel
     float *matrix;
     matrix = createGaussianKernel(size, 1.0f);
 
-	cout <<"The height of frame "<< grayframe.rows << endl;
-	cout <<"The weight of frame "<< grayframe.cols << endl;
+    cout << "The height of frame " << grayframe.rows << endl;
+    cout << "The weight of frame " << grayframe.cols << endl;
 
     unsigned int mem_size_A = imgSize;
     unsigned int mem_size_B = size * size * sizeof(float);
@@ -196,9 +193,7 @@ int main(int, char **) {
     // the hosts iputs
     unsigned char *h_A = grayframe.data;
     float *h_B = matrix;
-    unsigned char *h_C =(unsigned char *) malloc(mem_size_C);
-
-
+    unsigned char *h_C = (unsigned char *)malloc(mem_size_C);
 
     // OpenCL device memory for matrices
     cl_mem d_A;
@@ -208,7 +203,7 @@ int main(int, char **) {
     // Create the input and output arrays in device memory for our calculation
     d_A = clCreateBuffer(context, CL_MEM_READ_ONLY, mem_size_A, NULL, &err);
     d_B = clCreateBuffer(context, CL_MEM_READ_ONLY, mem_size_B, NULL, &err);
-    d_C = clCreateBuffer(context, CL_MEM_READ_WRITE,mem_size_C, NULL, &err);
+    d_C = clCreateBuffer(context, CL_MEM_READ_WRITE, mem_size_C, NULL, &err);
 
     if (!d_A || !d_B || !d_C) {
       printf("Error: Failed to allocate device memory!\n");
@@ -220,21 +215,21 @@ int main(int, char **) {
     // for the host-to-device transfer.
     cl_event write_event[2];
     cl_event kernel_event, finish_event;
-    status = clEnqueueWriteBuffer(queue, d_A, CL_FALSE, 0,  mem_size_A, h_A, 0,
+    status = clEnqueueWriteBuffer(queue, d_A, CL_FALSE, 0, mem_size_A, h_A, 0,
                                   NULL, &write_event[0]);
     checkError(status, "Failed to transfer input A");
 
-    status = clEnqueueWriteBuffer(queue, d_B, CL_FALSE, 0,mem_size_B, h_B, 0,
+    status = clEnqueueWriteBuffer(queue, d_B, CL_FALSE, 0, mem_size_B, h_B, 0,
                                   NULL, &write_event[1]);
 
     checkError(status, "Failed to transfer input B");
 
     // Set kernel arguments.
     unsigned argi = 0;
-    status = clSetKernelArg(kernel, argi++, sizeof(cl_mem),(void *) &d_A);
+    status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), (void *)&d_A);
     checkError(status, "Failed to set argument 1");
 
-    status = clSetKernelArg(kernel, argi++, sizeof(cl_mem),(void *) &d_B);
+    status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), (void *)&d_B);
     checkError(status, "Failed to set argument 2");
 
     status =
@@ -248,31 +243,28 @@ int main(int, char **) {
     status = clSetKernelArg(kernel, argi++, sizeof(int), (void *)&size);
     checkError(status, "Failed to set argument 5");
 
-    status = clSetKernelArg(kernel, argi++, sizeof(cl_mem),(void *) &d_C);
+    status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), (void *)&d_C);
     checkError(status, "Failed to set argument 6");
-    ///enqueue the kernel into the OpenCL device for execution
-    //the total size of 1 dimension of the work items. Basically the whole image buffer size
+    /// enqueue the kernel into the OpenCL device for execution
+    // the total size of 1 dimension of the work items. Basically the whole
+    // image buffer size
     size_t globalWorkItemSize = mem_size_A;
-    status = clEnqueueNDRangeKernel(queue, kernel, 1, NULL,&globalWorkItemSize,
-									NULL,2, write_event, &kernel_event);
+    status = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &globalWorkItemSize,
+                                    NULL, 2, write_event, &kernel_event);
 
     checkError(status, "Failed to set enqueue kernel");
 
-	cout << "Reading the result" <<endl;
+    cout << "Reading the result" << endl;
     // Read the result. This the final operation.
-    status = clEnqueueReadBuffer(queue, d_C, CL_TRUE, 0, mem_size_C, h_C,
-                                1, &kernel_event, &finish_event);
+    status = clEnqueueReadBuffer(queue, d_C, CL_TRUE, 0, mem_size_C, h_C, 1,
+                                 &kernel_event, &finish_event);
     checkError(status, "Failed to set output");
 
-
-	cout << "Finished" <<endl;
+    cout << "Finished" << endl;
     time(&end);
 
     diff = difftime(end, start);
     printf("GPU took %.8lf seconds to run.\n", diff);
-
-
-
 
     Mat result(cameraFrame.size(), CV_8UC1, h_C);
     cvtColor(result, displayframe, CV_GRAY2BGR);
