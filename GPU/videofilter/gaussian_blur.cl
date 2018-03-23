@@ -7,7 +7,6 @@ __kernel void gaussian_blur(__global const unsigned char *image,
 {
 	unsigned int x,y,imgLineSize;
 	float value;
-
 	int i,xOff,yOff,center;
 	//Get the index of the current element being processed
     i = get_global_id(0);
