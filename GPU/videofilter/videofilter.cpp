@@ -181,16 +181,21 @@ int main(int, char **) {
     // image size
     uint32_t imgSize = 3 *grayframe.rows * grayframe.cols;
     uint32_t size = 3;
-	
+
 	// create the gaussian Kernel
     float *matrix;
     matrix = createGaussianKernel(size, 1.0f);
 
-	
+
+
+    unsigned int mem_size_A = imgSize;
+    unsigned int mem_size_B = size * size * sizeof(float);
+    unsigned int mem_size_C = imgSize;
+
     // the hosts iputs
     unsigned char *h_A = grayframe.data;
     float *h_B = matrix;
-    unsigned char *h_C =(unsigned char *) malloc(imgSize);
+    unsigned char *h_C =(unsigned char *) malloc(mem_size_C);
 
 
 
@@ -200,9 +205,9 @@ int main(int, char **) {
     cl_mem d_C;
 
     // Create the input and output arrays in device memory for our calculation
-    d_A = clCreateBuffer(context, CL_MEM_READ_ONLY, imgSize, NULL, &err);
-    d_B = clCreateBuffer(context, CL_MEM_READ_ONLY,size * size * sizeof(float) , NULL, &err);
-    d_C = clCreateBuffer(context, CL_MEM_READ_WRITE,imgSize, NULL, &err);
+    d_A = clCreateBuffer(context, CL_MEM_READ_ONLY, mem_size_A, NULL, &err);
+    d_B = clCreateBuffer(context, CL_MEM_READ_ONLY, mem_size_B, NULL, &err);
+    d_C = clCreateBuffer(context, CL_MEM_READ_WRITE,mem_size_C, NULL, &err);
 
     if (!d_A || !d_B || !d_C) {
       printf("Error: Failed to allocate device memory!\n");
@@ -214,11 +219,11 @@ int main(int, char **) {
     // for the host-to-device transfer.
     cl_event write_event[2];
     cl_event kernel_event, finish_event;
-    status = clEnqueueWriteBuffer(queue, d_A, CL_FALSE, 0,  imgSize, h_A, 0,
+    status = clEnqueueWriteBuffer(queue, d_A, CL_FALSE, 0,  mem_size_A, h_A, 0,
                                   NULL, &write_event[0]);
     checkError(status, "Failed to transfer input A");
 
-    status = clEnqueueWriteBuffer(queue, d_B, CL_FALSE, 0,size*size*sizeof(float), h_B, 0,
+    status = clEnqueueWriteBuffer(queue, d_B, CL_FALSE, 0,mem_size_B, h_B, 0,
                                   NULL, &write_event[1]);
 
     checkError(status, "Failed to transfer input B");
@@ -245,14 +250,14 @@ int main(int, char **) {
     status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &d_C);
     checkError(status, "Failed to set argument 6");
     ///enqueue the kernel into the OpenCL device for execution
-    size_t globalWorkItemSize = imgSize;//the total size of 1 dimension of the work items. Basically the whole image buffer size
-    status = clEnqueueNDRangeKernel(queue, kernel, 1, NULL,&globalWorkItemSize, 
+    size_t globalWorkItemSize = mem_size_A;//the total size of 1 dimension of the work items. Basically the whole image buffer size
+    status = clEnqueueNDRangeKernel(queue, kernel, 1, NULL,&globalWorkItemSize,
 									NULL,2, write_event, &kernel_event);
 
     checkError(status, "Failed to set enqueue kernel");
 
     // Read the result. This the final operation.
-    status = clEnqueueReadBuffer(queue, d_C, CL_TRUE, 0, imgSize, h_C, 
+    status = clEnqueueReadBuffer(queue, d_C, CL_TRUE, 0, mem_size_C, h_C,
                                 1, &kernel_event, &finish_event);
     checkError(status, "Failed to set output");
 
